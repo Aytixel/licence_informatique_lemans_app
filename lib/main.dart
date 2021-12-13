@@ -8,10 +8,14 @@ String dateToDateString(DateTime dateTime) {
   return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
 }
 
+String dateToHourString(DateTime startDate, DateTime endDate) {
+  return '${startDate.hour}:${startDate.minute} - ${endDate.hour}:${endDate.minute}';
+}
+
 Future<Planning> fetchPlanning(
     DateTimeRange dateTimeRange, String level, int group) async {
   final response = await http.get(Uri.parse(
-      'https://api.licence-informatique-lemans.tk/v1/planning.json?level=${level}&group=${group}&start=${dateToDateString(dateTimeRange.start)}&end=${dateToDateString(dateTimeRange.end)}'));
+      'https://api.licence-informatique-lemans.tk/v1/planning.json?level=$level&group=$group&start=${dateToDateString(dateTimeRange.start)}&end=${dateToDateString(dateTimeRange.end)}'));
 
   if (response.statusCode == 200) {
     return Planning.fromJson(jsonDecode(response.body));
@@ -25,25 +29,57 @@ class Planning {
   final int group;
   final DateTime startDate;
   final DateTime endDate;
-  final List<dynamic> cources;
+  final List<Day> days;
 
   Planning({
     required this.level,
     required this.group,
     required this.startDate,
     required this.endDate,
-    required this.cources,
+    required this.days,
   });
 
   factory Planning.fromJson(Map<String, dynamic> json) {
+    DateTime startDate = DateTime.parse(json['startDate']);
+    DateTime endDate = DateTime.parse(json['endDate']);
+    int dayCount = endDate.difference(startDate).inDays;
+    List<Day> days = List.generate(
+        dayCount,
+        (index) =>
+            Day(date: startDate.add(Duration(days: index)), cources: []));
+    List<dynamic> cources =
+        json['cources'].map((dynamic value) => Cource.fromJson(value)).toList();
+
+    cources.sort(
+        (courceA, courceB) => courceA.startDate.compareTo(courceB.startDate));
+
+    for (Cource cource in cources) {
+      for (int i = 0; i < dayCount; i++) {
+        if (cource.startDate.day == days[i].date.day &&
+            cource.startDate.month == days[i].date.month &&
+            cource.startDate.year == days[i].date.year) {
+          days[i].cources.add(cource);
+        }
+      }
+    }
+
     return Planning(
         level: json['level'],
         group: json['group'],
-        startDate: DateTime.parse(json['startDate']),
-        endDate: DateTime.parse(json['endDate']),
-        cources:
-            json['cources'].map((value) => Cource.fromJson(value)).toList());
+        startDate: startDate,
+        endDate: endDate,
+        days: days);
   }
+}
+
+class Day {
+  final DateTime date;
+  final List<dynamic> cources;
+
+  Day({
+    required this.date,
+    required this.cources,
+  });
 }
 
 class Cource {
@@ -117,7 +153,33 @@ class _HomePageState extends State<HomePage> {
         future: futurePlanning,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            return Text(snapshot.data!.cources[0].title);
+            //return Text(snapshot.data!.cources[0].title);
+
+            List<Widget> cources =
+                List.generate(snapshot.data!.days.length, (int index) {
+              Day day = snapshot.data!.days[index];
+
+              if (day.cources.isEmpty) return Column();
+
+              Cource cource = day.cources[0];
+
+              return Column(children: <Widget>[
+                Text(cource.title),
+                Column(
+                    children: cource.resources
+                        .map((String value) => Text(value))
+                        .toList()),
+                Column(
+                    children: cource.comment
+                        .map((String value) => Text(value))
+                        .toList()),
+                Text(dateToHourString(cource.startDate, cource.endDate))
+              ]);
+            });
+
+            return ListView(
+              children: cources,
+            );
           } else if (snapshot.hasError) {
             return Text('${snapshot.error}');
           }
