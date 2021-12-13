@@ -8,6 +8,20 @@ String dateToDateString(DateTime dateTime) {
   return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
 }
 
+String dateToFormatedDateString(DateTime dateTime) {
+  List<String> weekday = [
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+    'Dimanche'
+  ];
+
+  return '${weekday[dateTime.weekday - 1]} ${dateToDateString(dateTime)}';
+}
+
 String dateToHourString(DateTime startDate, DateTime endDate) {
   return '${startDate.hour}:${startDate.minute} - ${endDate.hour}:${endDate.minute}';
 }
@@ -64,11 +78,12 @@ class Planning {
     }
 
     return Planning(
-        level: json['level'],
-        group: json['group'],
-        startDate: startDate,
-        endDate: endDate,
-        days: days);
+      level: json['level'],
+      group: json['group'],
+      startDate: startDate,
+      endDate: endDate,
+      days: days,
+    );
   }
 }
 
@@ -99,11 +114,12 @@ class Cource {
 
   factory Cource.fromJson(Map<String, dynamic> json) {
     return Cource(
-        title: json['title'],
-        startDate: DateTime.parse(json['startDate']),
-        endDate: DateTime.parse(json['endDate']),
-        resources: List<String>.from(json['resources']),
-        comment: List<String>.from(json['comment']));
+      title: json['title'],
+      startDate: DateTime.parse(json['startDate']),
+      endDate: DateTime.parse(json['endDate']),
+      resources: List<String>.from(json['resources']),
+      comment: List<String>.from(json['comment']),
+    );
   }
 }
 
@@ -132,6 +148,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final ScrollController _scrollController = ScrollController();
   late Future<Planning> futurePlanning;
 
   @override
@@ -142,51 +159,58 @@ class _HomePageState extends State<HomePage> {
             start: DateTime.now(),
             end: DateTime.now().add(const Duration(days: 7))),
         'l1',
-        2);
+        0);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         body: Center(
-      child: FutureBuilder<Planning>(
-        future: futurePlanning,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            //return Text(snapshot.data!.cources[0].title);
+        child: FutureBuilder<Planning>(
+          future: futurePlanning,
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              //return Text(snapshot.data!.cources[0].title);
 
-            List<Widget> cources =
-                List.generate(snapshot.data!.days.length, (int index) {
-              Day day = snapshot.data!.days[index];
+              List<Widget> days = List.generate(snapshot.data!.days.length, (int index) {
+                Day day = snapshot.data!.days[index];
 
-              if (day.cources.isEmpty) return Column();
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  width: MediaQuery.of(context).size.width,
+                  child: Column(
+                    children: <Widget>[
+                      Card(
+                        child: SizedBox(
+                          height: 50,
+                          child: Center(
+                            child: Text(dateToFormatedDateString(day.date))
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              });
 
-              Cource cource = day.cources[0];
+              return Scrollbar(
+                isAlwaysShown: true,
+                controller: _scrollController,
+                child: ListView(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  children: days,
+                ),
+              );
+            } else if (snapshot.hasError) {
+              return Text('${snapshot.error}');
+            }
 
-              return Column(children: <Widget>[
-                Text(cource.title),
-                Column(
-                    children: cource.resources
-                        .map((String value) => Text(value))
-                        .toList()),
-                Column(
-                    children: cource.comment
-                        .map((String value) => Text(value))
-                        .toList()),
-                Text(dateToHourString(cource.startDate, cource.endDate))
-              ]);
-            });
-
-            return ListView(
-              children: cources,
-            );
-          } else if (snapshot.hasError) {
-            return Text('${snapshot.error}');
-          }
-
-          return const CircularProgressIndicator();
-        },
+            return const CircularProgressIndicator();
+          },
+        ),
       ),
-    ));
+    );
   }
 }
