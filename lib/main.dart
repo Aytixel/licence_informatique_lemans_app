@@ -32,7 +32,7 @@ Future<Planning> fetchPlanning(
       'https://api.licence-informatique-lemans.tk/v1/planning.json?level=$level&group=$group&start=${dateToDateString(dateTimeRange.start)}&end=${dateToDateString(dateTimeRange.end)}'));
 
   if (response.statusCode == 200) {
-    return Planning.fromJson(jsonDecode(response.body));
+    return Planning.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
   } else {
     throw Exception('Failed to load album');
   }
@@ -68,13 +68,7 @@ class Planning {
         (courceA, courceB) => courceA.startDate.compareTo(courceB.startDate));
 
     for (Cource cource in cources) {
-      for (int i = 0; i < dayCount; i++) {
-        if (cource.startDate.day == days[i].date.day &&
-            cource.startDate.month == days[i].date.month &&
-            cource.startDate.year == days[i].date.year) {
-          days[i].cources.add(cource);
-        }
-      }
+      days[cource.startDate.difference(startDate).inDays].cources.add(cource);
     }
 
     return Planning(
@@ -165,14 +159,15 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Center(
+      body: Center(
         child: FutureBuilder<Planning>(
           future: futurePlanning,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               //return Text(snapshot.data!.cources[0].title);
 
-              List<Widget> days = List.generate(snapshot.data!.days.length, (int index) {
+              List<Widget> days =
+                  List.generate(snapshot.data!.days.length, (int index) {
                 Day day = snapshot.data!.days[index];
 
                 return Container(
@@ -185,8 +180,7 @@ class _HomePageState extends State<HomePage> {
                         child: SizedBox(
                           height: 50,
                           child: Center(
-                            child: Text(dateToFormatedDateString(day.date))
-                          ),
+                              child: Text(dateToFormatedDateString(day.date))),
                         ),
                       ),
                     ],
