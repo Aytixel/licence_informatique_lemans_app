@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -144,32 +143,101 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Future<Planning> futurePlanning;
+  String levelDropdownValue = 'l1';
+  int groupDropdownValue = 0;
 
   @override
   void initState() {
     super.initState();
+    refresh();
+  }
+
+  void refresh() {
     futurePlanning = fetchPlanning(
         DateTimeRange(
             start: DateTime.now(),
             end: DateTime.now().add(const Duration(days: 7))),
-        'l1',
-        0);
+        levelDropdownValue,
+        groupDropdownValue);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<Planning>(
-        future: futurePlanning,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return PlanningWidget(planning: snapshot.data!);
-          } else if (snapshot.hasError) {
-            return Text('${snapshot.error}');
-          }
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: FutureBuilder<Planning>(
+              future: futurePlanning,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return PlanningWidget(planning: snapshot.data!);
+                } else if (snapshot.hasError) {
+                  return Text('${snapshot.error}');
+                }
 
-          return const CircularProgressIndicator();
-        },
+                return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF2E2E2E)));
+              },
+            ),
+          ),
+          SizedBox(
+            height: 50,
+            child: Card(
+              color: const Color(0xFF2E2E2E),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DropdownButton(
+                      value: levelDropdownValue,
+                      dropdownColor: const Color(0xFF2E2E2E),
+                      underline: Container(
+                        height: 2,
+                        color: Colors.white,
+                      ),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          levelDropdownValue = newValue!;
+                          refresh();
+                        });
+                      },
+                      items: <String>['L1', 'L2', 'L3']
+                          .map((String value) => DropdownMenuItem(
+                                value: value.toLowerCase(),
+                                child: Text(
+                                  value,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ))
+                          .toList()),
+                  const SizedBox(width: 20),
+                  DropdownButton(
+                      value: groupDropdownValue,
+                      dropdownColor: const Color(0xFF2E2E2E),
+                      underline: Container(
+                        height: 2,
+                        color: Colors.white,
+                      ),
+                      onChanged: (int? newValue) {
+                        setState(() {
+                          groupDropdownValue = newValue!;
+                          refresh();
+                        });
+                      },
+                      items: <int>[0, 1, 2, 3, 4, 5]
+                          .map((int value) => DropdownMenuItem(
+                                value: value,
+                                child: Text(
+                                  'TPGr${(value + 1)}',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ))
+                          .toList()),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -182,13 +250,9 @@ class PlanningWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ScrollController _scrollController = ScrollController();
-
     return Scrollbar(
       isAlwaysShown: true,
-      controller: _scrollController,
-      child: ListView(
-        controller: _scrollController,
+      child: PageView(
         scrollDirection: Axis.horizontal,
         children: List.generate(planning.days.length,
             (int index) => DayWidget(day: planning.days[index])),
@@ -212,7 +276,10 @@ class DayWidget extends StatelessWidget {
           child: Center(
               child: Text(
             dateToFormatedDateString(day.date),
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+            ),
           )),
         ),
       ),
@@ -253,10 +320,10 @@ class CourceWidget extends StatelessWidget {
 
     if (cource.resources.isNotEmpty) {
       subtitleList.add(Container(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.only(top: 13),
         child: Column(
           children: cource.resources
-              .map((value) => Text(
+              .map((String value) => Text(
                     value,
                     style: const TextStyle(color: Colors.white),
                   ))
@@ -266,10 +333,10 @@ class CourceWidget extends StatelessWidget {
     }
     if (cource.comment.isNotEmpty) {
       subtitleList.add(Container(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.only(top: 13),
         child: Column(
           children: cource.comment
-              .map((value) => Text(
+              .map((String value) => Text(
                     value,
                     style: const TextStyle(color: Colors.white),
                   ))
@@ -279,29 +346,30 @@ class CourceWidget extends StatelessWidget {
     }
 
     subtitleList.add(Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.only(top: 13, bottom: 10),
       child: Text(
         dateToHourString(cource.startDate, cource.endDate),
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+        ),
       ),
     ));
 
     Color cardBackgroundColor = const Color(0xFF2E2E2E);
 
-    if (RegExp(r'cour|cm|conférence métier', caseSensitive: false)
+    if (RegExp('cour|cm|conférence métier', caseSensitive: false)
         .hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8CB8870B);
     }
-    if (RegExp(r'exam|qcm|contrôle continu', caseSensitive: false)
+    else if (RegExp('exam|qcm|contrôle continu', caseSensitive: false)
         .hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8CDC143C);
     }
-    if (RegExp(r'td|gr[ ]*[a-c]', caseSensitive: false)
-        .hasMatch(cource.title)) {
+    else if (RegExp('td|gr[ ]*[a-c]', caseSensitive: false).hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8C318B57);
     }
-    if (RegExp(r'tp|gr[ ]*[1-6]', caseSensitive: false)
-        .hasMatch(cource.title)) {
+    else if (RegExp('tp|gr[ ]*[1-6]', caseSensitive: false).hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8C008B8B);
     }
 
@@ -310,7 +378,10 @@ class CourceWidget extends StatelessWidget {
       child: ListTile(
         title: Text(
           cource.title,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+          ),
         ),
         subtitle: Column(
           children: subtitleList,
