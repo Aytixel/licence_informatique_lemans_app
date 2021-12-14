@@ -233,6 +233,14 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ))
                           .toList()),
+                  IconButton(onPressed: () {
+                    setState(() {
+                      refresh();
+                    });
+                  }, icon: const Icon(
+                    Icons.refresh,
+                    color: Colors.white),
+                  ),
                 ],
               ),
             ),
