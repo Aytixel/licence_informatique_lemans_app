@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:html';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -34,7 +35,7 @@ Future<Planning> fetchPlanning(
   if (response.statusCode == 200) {
     return Planning.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
   } else {
-    throw Exception('Failed to load album');
+    throw Exception('Failed to load planning');
   }
 }
 
@@ -127,8 +128,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Licence Informatique LeMans',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+          scaffoldBackgroundColor: const Color(0xFFD9D9D9),
+          fontFamily: 'Louis George Cafe'),
       home: const HomePage(),
     );
   }
@@ -142,7 +143,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ScrollController _scrollController = ScrollController();
   late Future<Planning> futurePlanning;
 
   @override
@@ -159,50 +159,161 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: FutureBuilder<Planning>(
-          future: futurePlanning,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              //return Text(snapshot.data!.cources[0].title);
+      body: FutureBuilder<Planning>(
+        future: futurePlanning,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return PlanningWidget(planning: snapshot.data!);
+          } else if (snapshot.hasError) {
+            return Text('${snapshot.error}');
+          }
 
-              List<Widget> days =
-                  List.generate(snapshot.data!.days.length, (int index) {
-                Day day = snapshot.data!.days[index];
+          return const CircularProgressIndicator();
+        },
+      ),
+    );
+  }
+}
 
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
-                  width: MediaQuery.of(context).size.width,
-                  child: Column(
-                    children: <Widget>[
-                      Card(
-                        child: SizedBox(
-                          height: 50,
-                          child: Center(
-                              child: Text(dateToFormatedDateString(day.date))),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              });
+class PlanningWidget extends StatelessWidget {
+  const PlanningWidget({Key? key, required this.planning}) : super(key: key);
 
-              return Scrollbar(
-                isAlwaysShown: true,
-                controller: _scrollController,
-                child: ListView(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  children: days,
-                ),
-              );
-            } else if (snapshot.hasError) {
-              return Text('${snapshot.error}');
-            }
+  final Planning planning;
 
-            return const CircularProgressIndicator();
-          },
+  @override
+  Widget build(BuildContext context) {
+    final ScrollController _scrollController = ScrollController();
+
+    return Scrollbar(
+      isAlwaysShown: true,
+      controller: _scrollController,
+      child: ListView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        children: List.generate(planning.days.length,
+            (int index) => DayWidget(day: planning.days[index])),
+      ),
+    );
+  }
+}
+
+class DayWidget extends StatelessWidget {
+  const DayWidget({Key? key, required this.day}) : super(key: key);
+
+  final Day day;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> courceList = <Widget>[
+      Card(
+        color: const Color(0xFF2E2E2E),
+        child: SizedBox(
+          height: 50,
+          child: Center(
+              child: Text(
+            dateToFormatedDateString(day.date),
+            style: const TextStyle(color: Colors.white),
+          )),
+        ),
+      ),
+    ];
+
+    for (Cource cource in day.cources) {
+      courceList.add(CourceWidget(cource: cource));
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+      width: MediaQuery.of(context).size.width,
+      child: Card(
+        color: const Color(0xFF1C1C1C),
+        child: MediaQuery.removePadding(
+          context: context,
+          removeTop: true,
+          child: Container(
+            padding: const EdgeInsets.all(5),
+            child: ListView(
+              children: courceList,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CourceWidget extends StatelessWidget {
+  const CourceWidget({Key? key, required this.cource}) : super(key: key);
+
+  final Cource cource;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> subtitleList = [];
+
+    if (cource.resources.isNotEmpty) {
+      subtitleList.add(Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Column(
+          children: cource.resources
+              .map((value) => Text(
+                    value,
+                    style: const TextStyle(color: Colors.white),
+                  ))
+              .toList(),
+        ),
+      ));
+    }
+    if (cource.comment.isNotEmpty) {
+      subtitleList.add(Container(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Column(
+          children: cource.comment
+              .map((value) => Text(
+                    value,
+                    style: const TextStyle(color: Colors.white),
+                  ))
+              .toList(),
+        ),
+      ));
+    }
+
+    subtitleList.add(Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        dateToHourString(cource.startDate, cource.endDate),
+        style: const TextStyle(color: Colors.white),
+      ),
+    ));
+
+    Color cardBackgroundColor = const Color(0xFF2E2E2E);
+
+    if (RegExp(r'cour|cm|conférence métier', caseSensitive: false)
+        .hasMatch(cource.title)) {
+      cardBackgroundColor = const Color(0x8CB8870B);
+    }
+    if (RegExp(r'exam|qcm|contrôle continu', caseSensitive: false)
+        .hasMatch(cource.title)) {
+      cardBackgroundColor = const Color(0x8CDC143C);
+    }
+    if (RegExp(r'td|gr[ ]*[a-c]', caseSensitive: false)
+        .hasMatch(cource.title)) {
+      cardBackgroundColor = const Color(0x8C318B57);
+    }
+    if (RegExp(r'tp|gr[ ]*[1-6]', caseSensitive: false)
+        .hasMatch(cource.title)) {
+      cardBackgroundColor = const Color(0x8C008B8B);
+    }
+
+    return Card(
+      color: cardBackgroundColor,
+      child: ListTile(
+        title: Text(
+          cource.title,
+          style: const TextStyle(color: Colors.white),
+        ),
+        subtitle: Column(
+          children: subtitleList,
         ),
       ),
     );
