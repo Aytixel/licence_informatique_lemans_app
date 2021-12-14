@@ -19,7 +19,7 @@ String dateToFormatedDateString(DateTime dateTime) {
     'Dimanche'
   ];
 
-  return '${weekday[dateTime.weekday - 1]} ${dateToDateString(dateTime)}';
+  return '${weekday[dateTime.weekday - 1]} ${dateTime.day}/${dateTime.month}/${dateTime.year}';
 }
 
 String dateToHourString(DateTime startDate, DateTime endDate) {
