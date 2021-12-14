@@ -2,7 +2,7 @@
     package="com.example.licence_informatique_lemans_app">
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="licence_informatique_lemans_app"
+        android:label="Licence Informatique LeMans"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
