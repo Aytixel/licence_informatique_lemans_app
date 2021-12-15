@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 String dateToDateString(DateTime dateTime) {
   return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
@@ -26,10 +27,19 @@ String dateToHourString(DateTime startDate, DateTime endDate) {
   return '${startDate.hour}:${startDate.minute} - ${endDate.hour}:${endDate.minute}';
 }
 
-Future<Planning> fetchPlanning(
-    DateTimeRange dateTimeRange, String level, int group) async {
+Future<Planning> fetchPlanning(DateTimeRange dateTimeRange,
+    [String level = '', int group = -1]) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  if (level != '') {
+    await prefs.setString('level', level);
+  }
+  if (group != -1) {
+    await prefs.setInt('group', group);
+  }
+
   final response = await http.get(Uri.parse(
-      'https://api.licence-informatique-lemans.tk/v1/planning.json?level=$level&group=$group&start=${dateToDateString(dateTimeRange.start)}&end=${dateToDateString(dateTimeRange.end)}'));
+      'https://api.licence-informatique-lemans.tk/v1/planning.json?level=${prefs.getString('level')}&group=${prefs.getInt('group')}&start=${dateToDateString(dateTimeRange.start)}&end=${dateToDateString(dateTimeRange.end)}'));
 
   if (response.statusCode == 200) {
     return Planning.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
@@ -149,7 +159,20 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    refresh();
+    _initState();
+
+    futurePlanning = fetchPlanning(DateTimeRange(
+        start: DateTime.now(),
+        end: DateTime.now().add(const Duration(days: 7))));
+  }
+
+  void _initState() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      levelDropdownValue = prefs.getString('level') ?? levelDropdownValue;
+      groupDropdownValue = prefs.getInt('group') ?? groupDropdownValue;
+    });
   }
 
   void refresh() {
@@ -233,13 +256,13 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ))
                           .toList()),
-                  IconButton(onPressed: () {
-                    setState(() {
-                      refresh();
-                    });
-                  }, icon: const Icon(
-                    Icons.refresh,
-                    color: Colors.white),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        refresh();
+                      });
+                    },
+                    icon: const Icon(Icons.refresh, color: Colors.white),
                   ),
                 ],
               ),
@@ -369,15 +392,14 @@ class CourceWidget extends StatelessWidget {
     if (RegExp('cour|cm|conférence métier', caseSensitive: false)
         .hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8CB8870B);
-    }
-    else if (RegExp('exam|qcm|contrôle continu', caseSensitive: false)
+    } else if (RegExp('exam|qcm|contrôle continu', caseSensitive: false)
         .hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8CDC143C);
-    }
-    else if (RegExp('td|gr[ ]*[a-c]', caseSensitive: false).hasMatch(cource.title)) {
+    } else if (RegExp('td|gr[ ]*[a-c]', caseSensitive: false)
+        .hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8C318B57);
-    }
-    else if (RegExp('tp|gr[ ]*[1-6]', caseSensitive: false).hasMatch(cource.title)) {
+    } else if (RegExp('tp|gr[ ]*[1-6]', caseSensitive: false)
+        .hasMatch(cource.title)) {
       cardBackgroundColor = const Color(0x8C008B8B);
     }
 
