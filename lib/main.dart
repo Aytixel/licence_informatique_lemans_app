@@ -187,6 +187,27 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xff009c9a),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: Image.asset(
+                'assets/icon/icon_dark.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            const Text('Planning'),
+            const SizedBox(
+              height: 60,
+              width: 60,
+            )
+          ],
+        ),
+      ),
       body: Column(
         children: <Widget>[
           Expanded(
