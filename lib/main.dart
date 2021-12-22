@@ -57,8 +57,10 @@ class Planning {
     Planning planning = Planning(
       level: prefs.getString('level') ?? 'l1',
       group: prefs.getInt('group') ?? 0,
-      startDate: DateTime(dateTimeRange.start.year, dateTimeRange.start.month, dateTimeRange.start.day),
-      endDate: DateTime(dateTimeRange.end.year, dateTimeRange.end.month, dateTimeRange.end.day),
+      startDate: DateTime(dateTimeRange.start.year, dateTimeRange.start.month,
+          dateTimeRange.start.day),
+      endDate: DateTime(dateTimeRange.end.year, dateTimeRange.end.month,
+          dateTimeRange.end.day),
       days: [],
     );
 
@@ -191,6 +193,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final PageController _pageController = PageController(initialPage: 6);
   late Future<Planning> _futurePlanning;
   String _levelDropdownValue = 'l1';
   int _groupDropdownValue = 0;
@@ -217,10 +220,11 @@ class _HomePageState extends State<HomePage> {
   void _reinit() {
     _futurePlanning = Planning.init(
         DateTimeRange(
-            start: DateTime.now(),
+            start: DateTime.now().subtract(const Duration(days: 6)),
             end: DateTime.now().add(const Duration(days: 7))),
         _levelDropdownValue,
         _groupDropdownValue);
+    _pageController.jumpToPage(6);
   }
 
   @override
@@ -254,7 +258,9 @@ class _HomePageState extends State<HomePage> {
               future: _futurePlanning,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  return PlanningWidget(planning: snapshot.data!);
+                  return PlanningWidget(
+                      planning: snapshot.data!,
+                      pageController: _pageController);
                 } else if (snapshot.hasError) {
                   return Text('${snapshot.error}');
                 }
@@ -335,22 +341,23 @@ class _HomePageState extends State<HomePage> {
 }
 
 class PlanningWidget extends StatefulWidget {
-  const PlanningWidget({Key? key, required this.planning}) : super(key: key);
+  const PlanningWidget(
+      {Key? key, required this.planning, required this.pageController})
+      : super(key: key);
 
   final Planning planning;
+  final PageController pageController;
 
   @override
   State<PlanningWidget> createState() => _PlanningWidgetState();
 }
 
 class _PlanningWidgetState extends State<PlanningWidget> {
-  final PageController _pageController = PageController(initialPage: 6);
-
   bool isLoading = false;
 
   @override
   void dispose() {
-    _pageController.dispose();
+    widget.pageController.dispose();
     super.dispose();
   }
 
@@ -359,7 +366,7 @@ class _PlanningWidgetState extends State<PlanningWidget> {
     return Scrollbar(
       isAlwaysShown: true,
       child: PageView(
-        controller: _pageController,
+        controller: widget.pageController,
         scrollDirection: Axis.horizontal,
         children: List.generate(widget.planning.days.length,
             (int index) => DayWidget(day: widget.planning.days[index])),
@@ -373,7 +380,7 @@ class _PlanningWidgetState extends State<PlanningWidget> {
 
                 if (succed) {
                   setState(() {
-                    _pageController.jumpToPage(9);
+                    widget.pageController.jumpToPage(9);
                   });
                 }
               });
@@ -385,7 +392,7 @@ class _PlanningWidgetState extends State<PlanningWidget> {
 
                 if (succed) {
                   setState(() {
-                    _pageController
+                    widget.pageController
                         .jumpToPage(widget.planning.days.length - 10);
                   });
                 }
