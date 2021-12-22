@@ -375,10 +375,10 @@ class _PlanningWidgetState extends State<PlanningWidget> {
             if (value == 2) {
               isLoading = true;
 
-              widget.planning.fetch(const Duration(days: -7)).then((succed) {
+              widget.planning.fetch(const Duration(days: -7)).then((succeed) {
                 isLoading = false;
 
-                if (succed) {
+                if (succeed) {
                   setState(() {
                     widget.pageController.jumpToPage(9);
                   });
@@ -387,10 +387,10 @@ class _PlanningWidgetState extends State<PlanningWidget> {
             } else if (value == widget.planning.days.length - 3) {
               isLoading = true;
 
-              widget.planning.fetch(const Duration(days: 7)).then((succed) {
+              widget.planning.fetch(const Duration(days: 7)).then((succeed) {
                 isLoading = false;
 
-                if (succed) {
+                if (succeed) {
                   setState(() {
                     widget.pageController
                         .jumpToPage(widget.planning.days.length - 10);
