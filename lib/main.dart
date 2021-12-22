@@ -57,8 +57,8 @@ class Planning {
     Planning planning = Planning(
       level: prefs.getString('level') ?? 'l1',
       group: prefs.getInt('group') ?? 0,
-      startDate: dateTimeRange.start,
-      endDate: dateTimeRange.end,
+      startDate: DateTime(dateTimeRange.start.year, dateTimeRange.start.month, dateTimeRange.start.day),
+      endDate: DateTime(dateTimeRange.end.year, dateTimeRange.end.month, dateTimeRange.end.day),
       days: [],
     );
 
@@ -70,6 +70,8 @@ class Planning {
   }
 
   Future<bool> fetch(Duration duration) async {
+    duration = Duration(days: duration.inDays);
+
     DateTime _startDate = duration.isNegative
         ? startDate.add(duration)
         : (duration.inDays == 0 ? startDate : endDate);
@@ -92,18 +94,18 @@ class Planning {
       List<Day> _days = List.generate(
           _endDate.difference(_startDate).inDays.abs(),
           (index) =>
-              Day(date: _startDate.add(Duration(days: index)), cources: []));
-      List<dynamic> cources = decodedJson['cources']
-          .map((dynamic value) => Cource.fromJson(value))
+              Day(date: _startDate.add(Duration(days: index)), courses: []));
+      List<dynamic> courses = decodedJson['courses']
+          .map((dynamic value) => Course.fromJson(value))
           .toList();
 
-      cources.sort(
-          (courceA, courceB) => courceA.startDate.compareTo(courceB.startDate));
+      courses.sort(
+          (courseA, courseB) => courseA.startDate.compareTo(courseB.startDate));
 
-      for (Cource cource in cources) {
-        _days[cource.startDate.difference(_startDate).inDays]
-            .cources
-            .add(cource);
+      for (Course course in courses) {
+        _days[course.startDate.difference(_startDate).inDays]
+            .courses
+            .add(course);
       }
 
       if (duration.isNegative) {
@@ -127,22 +129,22 @@ class Planning {
 
 class Day {
   final DateTime date;
-  final List<dynamic> cources;
+  final List<dynamic> courses;
 
   Day({
     required this.date,
-    required this.cources,
+    required this.courses,
   });
 }
 
-class Cource {
+class Course {
   final String title;
   final DateTime startDate;
   final DateTime endDate;
   final List<String> resources;
   final List<String> comment;
 
-  Cource({
+  Course({
     required this.title,
     required this.startDate,
     required this.endDate,
@@ -150,8 +152,8 @@ class Cource {
     required this.comment,
   });
 
-  factory Cource.fromJson(Map<String, dynamic> json) {
-    return Cource(
+  factory Course.fromJson(Map<String, dynamic> json) {
+    return Course(
       title: json['title'],
       startDate: DateTime.parse(json['startDate']),
       endDate: DateTime.parse(json['endDate']),
@@ -403,7 +405,7 @@ class DayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> courceList = <Widget>[
+    final List<Widget> courseList = <Widget>[
       Card(
         color: const Color(0xFF2E2E2E),
         child: SizedBox(
@@ -421,8 +423,8 @@ class DayWidget extends StatelessWidget {
       ),
     ];
 
-    for (Cource cource in day.cources) {
-      courceList.add(CourceWidget(cource: cource));
+    for (Course course in day.courses) {
+      courseList.add(CourseWidget(course: course));
     }
 
     return Container(
@@ -436,7 +438,7 @@ class DayWidget extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(5),
             child: ListView(
-              children: courceList,
+              children: courseList,
             ),
           ),
         ),
@@ -445,20 +447,20 @@ class DayWidget extends StatelessWidget {
   }
 }
 
-class CourceWidget extends StatelessWidget {
-  const CourceWidget({Key? key, required this.cource}) : super(key: key);
+class CourseWidget extends StatelessWidget {
+  const CourseWidget({Key? key, required this.course}) : super(key: key);
 
-  final Cource cource;
+  final Course course;
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> subtitleList = [];
 
-    if (cource.resources.isNotEmpty) {
+    if (course.resources.isNotEmpty) {
       subtitleList.add(Container(
         padding: const EdgeInsets.only(top: 13),
         child: Column(
-          children: cource.resources
+          children: course.resources
               .map((String value) => Text(
                     value,
                     style: const TextStyle(color: Colors.white),
@@ -467,11 +469,11 @@ class CourceWidget extends StatelessWidget {
         ),
       ));
     }
-    if (cource.comment.isNotEmpty) {
+    if (course.comment.isNotEmpty) {
       subtitleList.add(Container(
         padding: const EdgeInsets.only(top: 13),
         child: Column(
-          children: cource.comment
+          children: course.comment
               .map((String value) => Text(
                     value,
                     style: const TextStyle(color: Colors.white),
@@ -484,7 +486,7 @@ class CourceWidget extends StatelessWidget {
     subtitleList.add(Container(
       padding: const EdgeInsets.only(top: 13, bottom: 10),
       child: Text(
-        dateToHourString(cource.startDate, cource.endDate),
+        dateToHourString(course.startDate, course.endDate),
         style: const TextStyle(
           color: Colors.white,
           fontSize: 16,
@@ -495,16 +497,16 @@ class CourceWidget extends StatelessWidget {
     Color cardBackgroundColor = const Color(0xFF2E2E2E);
 
     if (RegExp('cour|cm|conférence métier', caseSensitive: false)
-        .hasMatch(cource.title)) {
+        .hasMatch(course.title)) {
       cardBackgroundColor = const Color(0x8CB8870B);
     } else if (RegExp('exam|qcm|contrôle continu', caseSensitive: false)
-        .hasMatch(cource.title)) {
+        .hasMatch(course.title)) {
       cardBackgroundColor = const Color(0x8CDC143C);
     } else if (RegExp('td|gr[ ]*[a-c]', caseSensitive: false)
-        .hasMatch(cource.title)) {
+        .hasMatch(course.title)) {
       cardBackgroundColor = const Color(0x8C318B57);
     } else if (RegExp('tp|gr[ ]*[1-6]', caseSensitive: false)
-        .hasMatch(cource.title)) {
+        .hasMatch(course.title)) {
       cardBackgroundColor = const Color(0x8C008B8B);
     }
 
@@ -512,7 +514,7 @@ class CourceWidget extends StatelessWidget {
       color: cardBackgroundColor,
       child: ListTile(
         title: Text(
-          cource.title,
+          course.title,
           style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
