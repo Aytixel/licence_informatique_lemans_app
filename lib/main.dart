@@ -27,33 +27,13 @@ String dateToHourString(DateTime startDate, DateTime endDate) {
   return '${startDate.hour}:${startDate.minute} - ${endDate.hour}:${endDate.minute}';
 }
 
-Future<Planning> fetchPlanning(DateTimeRange dateTimeRange,
-    [String level = '', int group = -1]) async {
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-  if (level != '') {
-    await prefs.setString('level', level);
-  }
-  if (group != -1) {
-    await prefs.setInt('group', group);
-  }
-
-  final response = await http.get(Uri.parse(
-      'https://api.licence-informatique-lemans.tk/v1/planning.json?level=${prefs.getString('level')}&group=${prefs.getInt('group')}&start=${dateToDateString(dateTimeRange.start)}&end=${dateToDateString(dateTimeRange.end)}'));
-
-  if (response.statusCode == 200) {
-    return Planning.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
-  } else {
-    throw Exception('Failed to load planning');
-  }
-}
-
 class Planning {
   final String level;
   final int group;
-  final DateTime startDate;
-  final DateTime endDate;
-  final List<Day> days;
+
+  DateTime startDate;
+  DateTime endDate;
+  List<Day> days;
 
   Planning({
     required this.level,
@@ -63,31 +43,85 @@ class Planning {
     required this.days,
   });
 
-  factory Planning.fromJson(Map<String, dynamic> json) {
-    DateTime startDate = DateTime.parse(json['startDate']);
-    DateTime endDate = DateTime.parse(json['endDate']);
-    int dayCount = endDate.difference(startDate).inDays;
-    List<Day> days = List.generate(
-        dayCount,
-        (index) =>
-            Day(date: startDate.add(Duration(days: index)), cources: []));
-    List<dynamic> cources =
-        json['cources'].map((dynamic value) => Cource.fromJson(value)).toList();
+  static Future<Planning> init(DateTimeRange dateTimeRange,
+      [String level = '', int group = -1]) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    cources.sort(
-        (courceA, courceB) => courceA.startDate.compareTo(courceB.startDate));
-
-    for (Cource cource in cources) {
-      days[cource.startDate.difference(startDate).inDays].cources.add(cource);
+    if (level != '') {
+      await prefs.setString('level', level);
+    }
+    if (group != -1) {
+      await prefs.setInt('group', group);
     }
 
-    return Planning(
-      level: json['level'],
-      group: json['group'],
-      startDate: startDate,
-      endDate: endDate,
-      days: days,
+    Planning planning = Planning(
+      level: prefs.getString('level') ?? 'l1',
+      group: prefs.getInt('group') ?? 0,
+      startDate: dateTimeRange.start,
+      endDate: dateTimeRange.end,
+      days: [],
     );
+
+    if (await planning.fetch(const Duration(days: 0))) {
+      return planning;
+    } else {
+      throw Exception('Failed to load planning');
+    }
+  }
+
+  Future<bool> fetch(Duration duration) async {
+    DateTime _startDate = duration.isNegative
+        ? startDate.add(duration)
+        : (duration.inDays == 0 ? startDate : endDate);
+    DateTime _endDate = duration.isNegative
+        ? startDate
+        : (duration.inDays == 0 ? endDate : endDate.add(duration));
+
+    if (duration.isNegative) {
+      startDate = _startDate;
+    } else {
+      endDate = _endDate;
+    }
+
+    final response = await http.get(Uri.parse(
+        'https://api.licence-informatique-lemans.tk/v1/planning.json?level=$level&group=$group&start=${dateToDateString(_startDate)}&end=${dateToDateString(_endDate)}'));
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> decodedJson =
+          jsonDecode(utf8.decode(response.bodyBytes));
+      List<Day> _days = List.generate(
+          _endDate.difference(_startDate).inDays.abs(),
+          (index) =>
+              Day(date: _startDate.add(Duration(days: index)), cources: []));
+      List<dynamic> cources = decodedJson['cources']
+          .map((dynamic value) => Cource.fromJson(value))
+          .toList();
+
+      cources.sort(
+          (courceA, courceB) => courceA.startDate.compareTo(courceB.startDate));
+
+      for (Cource cource in cources) {
+        _days[cource.startDate.difference(_startDate).inDays]
+            .cources
+            .add(cource);
+      }
+
+      if (duration.isNegative) {
+        _days.sort((dayA, dayB) => dayB.date.compareTo(dayA.date));
+      }
+
+      for (Day day in _days) {
+        if (duration.isNegative) {
+          days.insert(0, day);
+        } else {
+          days.add(day);
+        }
+      }
+
+      return true;
+    } else {
+      return false;
+    }
   }
 }
 
@@ -137,9 +171,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Licence Informatique LeMans',
       theme: ThemeData(
-          colorScheme: ColorScheme.fromSwatch().copyWith(secondary: const Color(0xff009c9a)),
-          scaffoldBackgroundColor: const Color(0xFFD9D9D9),
-          fontFamily: 'Louis George Cafe',
+        colorScheme: ColorScheme.fromSwatch()
+            .copyWith(secondary: const Color(0xff009c9a)),
+        scaffoldBackgroundColor: const Color(0xFFD9D9D9),
+        fontFamily: 'Louis George Cafe',
       ),
       home: const HomePage(),
     );
@@ -154,17 +189,17 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late Future<Planning> futurePlanning;
-  String levelDropdownValue = 'l1';
-  int groupDropdownValue = 0;
+  late Future<Planning> _futurePlanning;
+  String _levelDropdownValue = 'l1';
+  int _groupDropdownValue = 0;
 
   @override
   void initState() {
     super.initState();
     _initState();
 
-    futurePlanning = fetchPlanning(DateTimeRange(
-        start: DateTime.now(),
+    _futurePlanning = Planning.init(DateTimeRange(
+        start: DateTime.now().subtract(const Duration(days: 6)),
         end: DateTime.now().add(const Duration(days: 7))));
   }
 
@@ -172,18 +207,18 @@ class _HomePageState extends State<HomePage> {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      levelDropdownValue = prefs.getString('level') ?? levelDropdownValue;
-      groupDropdownValue = prefs.getInt('group') ?? groupDropdownValue;
+      _levelDropdownValue = prefs.getString('level') ?? _levelDropdownValue;
+      _groupDropdownValue = prefs.getInt('group') ?? _groupDropdownValue;
     });
   }
 
-  void refresh() {
-    futurePlanning = fetchPlanning(
+  void _reinit() {
+    _futurePlanning = Planning.init(
         DateTimeRange(
             start: DateTime.now(),
             end: DateTime.now().add(const Duration(days: 7))),
-        levelDropdownValue,
-        groupDropdownValue);
+        _levelDropdownValue,
+        _groupDropdownValue);
   }
 
   @override
@@ -214,7 +249,7 @@ class _HomePageState extends State<HomePage> {
         children: <Widget>[
           Expanded(
             child: FutureBuilder<Planning>(
-              future: futurePlanning,
+              future: _futurePlanning,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return PlanningWidget(planning: snapshot.data!);
@@ -235,7 +270,7 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   DropdownButton(
-                      value: levelDropdownValue,
+                      value: _levelDropdownValue,
                       dropdownColor: const Color(0xFF2E2E2E),
                       underline: Container(
                         height: 2,
@@ -243,8 +278,8 @@ class _HomePageState extends State<HomePage> {
                       ),
                       onChanged: (String? newValue) {
                         setState(() {
-                          levelDropdownValue = newValue!;
-                          refresh();
+                          _levelDropdownValue = newValue!;
+                          _reinit();
                         });
                       },
                       items: <String>['L1', 'L2', 'L3']
@@ -258,7 +293,7 @@ class _HomePageState extends State<HomePage> {
                           .toList()),
                   const SizedBox(width: 20),
                   DropdownButton(
-                      value: groupDropdownValue,
+                      value: _groupDropdownValue,
                       dropdownColor: const Color(0xFF2E2E2E),
                       underline: Container(
                         height: 2,
@@ -266,8 +301,8 @@ class _HomePageState extends State<HomePage> {
                       ),
                       onChanged: (int? newValue) {
                         setState(() {
-                          groupDropdownValue = newValue!;
-                          refresh();
+                          _groupDropdownValue = newValue!;
+                          _reinit();
                         });
                       },
                       items: <int>[0, 1, 2, 3, 4, 5]
@@ -280,10 +315,10 @@ class _HomePageState extends State<HomePage> {
                               ))
                           .toList()),
                   IconButton(
-                    onPressed: () {
-                      setState(() {
-                        refresh();
-                      });
+                    onPressed: () async {
+                      (await _futurePlanning).fetch(const Duration(days: 0));
+
+                      setState(() {});
                     },
                     icon: const Icon(Icons.refresh, color: Colors.white),
                   ),
@@ -297,19 +332,65 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class PlanningWidget extends StatelessWidget {
+class PlanningWidget extends StatefulWidget {
   const PlanningWidget({Key? key, required this.planning}) : super(key: key);
 
   final Planning planning;
+
+  @override
+  State<PlanningWidget> createState() => _PlanningWidgetState();
+}
+
+class _PlanningWidgetState extends State<PlanningWidget> {
+  final PageController _pageController = PageController(initialPage: 6);
+
+  bool isLoading = false;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scrollbar(
       isAlwaysShown: true,
       child: PageView(
+        controller: _pageController,
         scrollDirection: Axis.horizontal,
-        children: List.generate(planning.days.length,
-            (int index) => DayWidget(day: planning.days[index])),
+        children: List.generate(widget.planning.days.length,
+            (int index) => DayWidget(day: widget.planning.days[index])),
+        onPageChanged: (value) {
+          if (!isLoading) {
+            if (value == 2) {
+              isLoading = true;
+
+              widget.planning.fetch(const Duration(days: -7)).then((succed) {
+                isLoading = false;
+
+                if (succed) {
+                  setState(() {
+                    _pageController.jumpToPage(9);
+                  });
+                }
+              });
+            } else if (value == widget.planning.days.length - 3) {
+              isLoading = true;
+
+              widget.planning.fetch(const Duration(days: 7)).then((succed) {
+                isLoading = false;
+
+                if (succed) {
+                  setState(() {
+                    _pageController
+                        .jumpToPage(widget.planning.days.length - 10);
+                  });
+                }
+              });
+            }
+          }
+        },
       ),
     );
   }
@@ -328,13 +409,14 @@ class DayWidget extends StatelessWidget {
         child: SizedBox(
           height: 50,
           child: Center(
-              child: Text(
-            dateToFormatedDateString(day.date),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
+            child: Text(
+              dateToFormatedDateString(day.date),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+              ),
             ),
-          )),
+          ),
         ),
       ),
     ];
