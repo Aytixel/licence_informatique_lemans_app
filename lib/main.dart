@@ -1,9 +1,46 @@
+import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import "package:flutter/services.dart" as service;
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yaml/yaml.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
 import 'planning.dart';
+
+void checkUpdates() async {
+  if (Platform.isAndroid) {
+    final response = await http.get(Uri.parse(
+        'https://raw.githubusercontent.com/Aytixel/licence_informatique_lemans_app/master/pubspec.yaml'));
+
+    if (response.statusCode == 200) {
+      final String checkVersion =
+          (loadYaml(utf8.decode(response.bodyBytes))['version']);
+      final String currentVersion = (loadYaml(
+          await service.rootBundle.loadString('pubspec.yaml')))['version'];
+
+      if (checkVersion != currentVersion) {
+        final dio = Dio();
+        final Directory tempDir = await getTemporaryDirectory();
+        final String apkPath =
+            tempDir.path + '/licence-informatique-lemans.apk';
+
+        await dio.download(
+          'https://github.com/Aytixel/licence_informatique_lemans_app/releases/download/$checkVersion/app-release.apk',
+        apkPath);
+
+        if (response.statusCode == 200) {
+          OpenFile.open(apkPath);
+        }
+      }
+    }
+  }
+}
 
 void main() => runApp(const MyApp());
 
@@ -12,6 +49,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    checkUpdates();
+
     return MaterialApp(
       title: 'Licence Informatique LeMans',
       theme: ThemeData(
