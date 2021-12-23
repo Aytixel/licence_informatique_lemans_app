@@ -224,7 +224,7 @@ class _HomePageState extends State<HomePage> {
             end: DateTime.now().add(const Duration(days: 7))),
         _levelDropdownValue,
         _groupDropdownValue);
-    _pageController.jumpToPage(6);
+    _futurePlanning.then((value) => _pageController.jumpToPage(6));
   }
 
   @override
