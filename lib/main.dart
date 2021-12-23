@@ -55,7 +55,7 @@ class MyApp extends StatelessWidget {
       title: 'Licence Informatique LeMans',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSwatch()
-            .copyWith(secondary: const Color(0xffff0000)),
+            .copyWith(secondary: const Color(0xff009c9a)),
         scaffoldBackgroundColor: const Color(0xFFD9D9D9),
         fontFamily: 'Louis George Cafe',
       ),
