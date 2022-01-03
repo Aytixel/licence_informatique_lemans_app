@@ -13,32 +13,49 @@ import 'package:open_file/open_file.dart';
 
 import 'planning.dart';
 
-void checkUpdates() async {
+void checkUpdates(context) async {
   if (Platform.isAndroid) {
-    final response = await http.get(Uri.parse(
-        'https://raw.githubusercontent.com/Aytixel/licence_informatique_lemans_app/master/pubspec.yaml'));
+    try {
+      final response = await http.get(Uri.parse(
+          'https://raw.githubusercontent.com/Aytixel/licence_informatique_lemans_app/master/pubspec.yaml'));
 
-    if (response.statusCode == 200) {
-      final String checkVersion =
-          (loadYaml(utf8.decode(response.bodyBytes))['version']);
-      final String currentVersion = (loadYaml(
-          await service.rootBundle.loadString('pubspec.yaml')))['version'];
+      if (response.statusCode == 200) {
+        final String checkVersion =
+            (loadYaml(utf8.decode(response.bodyBytes))['version']);
+        final String currentVersion = (loadYaml(
+            await service.rootBundle.loadString('pubspec.yaml')))['version'];
 
-      if (checkVersion != currentVersion) {
-        final dio = Dio();
-        final Directory tempDir = await getTemporaryDirectory();
-        final String apkPath =
-            tempDir.path + '/licence-informatique-lemans.apk';
+        if (checkVersion != currentVersion) {
+          final scaffold = ScaffoldMessenger.of(context);
+          scaffold.showSnackBar(
+            SnackBar(
+              content: const Text('Une nouvelle version est prête'),
+              duration: const Duration(seconds: 10),
+              action: SnackBarAction(
+                  label: 'INSTALLER',
+                  onPressed: () async {
+                    scaffold.hideCurrentSnackBar();
 
-        await dio.download(
-          'https://github.com/Aytixel/licence_informatique_lemans_app/releases/download/$checkVersion/app-release.apk',
-        apkPath);
+                    final dio = Dio();
+                    final Directory tempDir = await getTemporaryDirectory();
+                    final String apkPath =
+                        tempDir.path + '/licence-informatique-lemans.apk';
 
-        if (response.statusCode == 200) {
-          OpenFile.open(apkPath);
+                    scaffold.showSnackBar(const SnackBar(content: Text('Nouvelle version en cours de téléchargement, laissez l\'application ouverte')));
+
+                    await dio.download(
+                        'https://github.com/Aytixel/licence_informatique_lemans_app/releases/download/$checkVersion/app-release.apk',
+                        apkPath);
+
+                    if (response.statusCode == 200) {
+                      OpenFile.open(apkPath);
+                    }
+                  }),
+            ),
+          );
         }
       }
-    }
+    } catch (_) {}
   }
 }
 
@@ -49,8 +66,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    checkUpdates();
-
     return MaterialApp(
       title: 'Licence Informatique LeMans',
       theme: ThemeData(
@@ -80,6 +95,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    checkUpdates(context);
     _initState();
 
     _futurePlanning = Planning.init(DateTimeRange(
@@ -203,7 +219,11 @@ class _HomePageState extends State<HomePage> {
                           .toList()),
                   IconButton(
                     onPressed: () async {
-                      (await _futurePlanning).fetch(const Duration(days: 0));
+                      try {
+                        (await _futurePlanning).fetch(const Duration(days: 0));
+                      } catch (_) {
+                        _reinit();
+                      }
 
                       setState(() {});
                     },
