@@ -79,12 +79,12 @@ class CourseWidget extends StatelessWidget {
 
     Color cardBackgroundColor = const Color(0xFF2E2E2E);
 
-    if (RegExp('cour|cm|conférence', caseSensitive: false)
-        .hasMatch(course.title)) {
-      cardBackgroundColor = const Color(0x8CB8870B);
-    } else if (RegExp('exam|qcm|contrôle', caseSensitive: false)
+    if (RegExp('exam|qcm|contrôle', caseSensitive: false)
         .hasMatch(course.title)) {
       cardBackgroundColor = const Color(0x8CDC143C);
+    } else if (RegExp('cour|cm|conférence', caseSensitive: false)
+        .hasMatch(course.title)) {
+      cardBackgroundColor = const Color(0x8CB8870B);
     } else if (RegExp('td|gr[ ]*[a-c]', caseSensitive: false)
         .hasMatch(course.title)) {
       cardBackgroundColor = const Color(0x8C318B57);
