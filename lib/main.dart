@@ -17,11 +17,10 @@ void checkUpdates(context) async {
   if (Platform.isAndroid) {
     try {
       final response = await http.get(Uri.parse(
-          'https://raw.githubusercontent.com/Aytixel/licence_informatique_lemans_app/master/pubspec.yaml'));
+          'https://api.github.com/repos/Aytixel/licence_informatique_lemans_app/releases?per_page=1'));
 
       if (response.statusCode == 200) {
-        final String checkVersion =
-            (loadYaml(utf8.decode(response.bodyBytes))['version']);
+        final String checkVersion = jsonDecode(utf8.decode(response.bodyBytes))[0]['tag_name'];
         final String currentVersion = (loadYaml(
             await service.rootBundle.loadString('pubspec.yaml')))['version'];
 
@@ -41,7 +40,9 @@ void checkUpdates(context) async {
                     final String apkPath =
                         tempDir.path + '/licence-informatique-lemans.apk';
 
-                    scaffold.showSnackBar(const SnackBar(content: Text('Nouvelle version en cours de téléchargement, laissez l\'application ouverte')));
+                    scaffold.showSnackBar(const SnackBar(
+                        content: Text(
+                            'Nouvelle version en cours de téléchargement, laissez l\'application ouverte')));
 
                     await dio.download(
                         'https://github.com/Aytixel/licence_informatique_lemans_app/releases/download/$checkVersion/app-release.apk',
