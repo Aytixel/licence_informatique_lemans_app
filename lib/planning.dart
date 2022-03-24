@@ -71,7 +71,7 @@ class Planning {
     } else {
       endDate = _endDate;
     }
-    
+
     try {
       final response = await http.get(Uri.parse(
           'https://api.licence-informatique-lemans.tk/v1/planning.json?level=$level&group=$group&start=${dateToDateString(_startDate)}&end=${dateToDateString(_endDate)}'));
@@ -79,15 +79,15 @@ class Planning {
         Map<String, dynamic> decodedJson =
             jsonDecode(utf8.decode(response.bodyBytes));
         List<Day> _days = List.generate(
-            _endDate.difference(_startDate).inDays.abs(),
+            duration.inDays == 0 ? 13 : duration.inDays.abs(),
             (index) =>
                 Day(date: _startDate.add(Duration(days: index)), courses: []));
         List<dynamic> courses = decodedJson['courses']
             .map((dynamic value) => Course.fromJson(value))
             .toList();
 
-        courses.sort(
-            (courseA, courseB) => courseA.startDate.compareTo(courseB.startDate));
+        courses.sort((courseA, courseB) =>
+            courseA.startDate.compareTo(courseB.startDate));
 
         for (Course course in courses) {
           _days[course.startDate.difference(_startDate).inDays]
